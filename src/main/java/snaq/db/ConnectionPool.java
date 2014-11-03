@@ -121,6 +121,29 @@ public class ConnectionPool extends ObjectPool<CacheConnection>
     addObjectPoolListener(new EventRelay<>());
   }
 
+	/**
+   * Creates a new {@code ConnectionPool} instance.
+   * @param name pool name
+   * @param minPool minimum number of pooled connections, or 0 for none
+   * @param maxPool maximum number of pooled connections, or 0 for none
+   * @param maxSize maximum number of possible connections, or 0 for no limit
+   * @param idleTimeout idle timeout (seconds) for idle pooled connections, or 0 for no timeout
+   * @param url JDBC connection URL
+   * @param username database username
+   * @param password password for the database username supplied
+	 * @param props any additional JDBC driver connection properties
+   */
+  public ConnectionPool(String name, int minPool, int maxPool, int maxSize, long idleTimeout, String url, String username, String password, Properties props)
+  {
+    super(name, minPool, maxPool, maxSize, idleTimeout);
+    this.url = url;
+    this.user = username;
+    this.pass = password;
+    this.props = props;
+    setCaching(true);
+    addObjectPoolListener(new EventRelay<>());
+  }
+
   /**
    * Creates a new {@code ConnectionPool} instance (with {@code minPool=0}).
    * @param name pool name
@@ -233,6 +256,14 @@ public class ConnectionPool extends ObjectPool<CacheConnection>
       // Properties instance specified, so take details from there.
       if (props != null)
       {
+				// Set the user in the properties if the user comes from the constructor that has user/password as arguments
+				if (!props.containsKey("user") && user != null)
+					props.setProperty("user", user);
+
+				// Set the password in the properties if the password comes from the constructor that has user/password as arguments
+				if (!props.containsKey("password") && pass != null)
+					props.setProperty("password", pass);
+
         // If password coded, temporarily set decoded version in properties.
         if (decoder != null)
           props.setProperty("password", new String(decoder.decode(pass)));
@@ -243,24 +274,27 @@ public class ConnectionPool extends ObjectPool<CacheConnection>
           props.setProperty("password", pass);
       }
       // No Properties specified, so use username/password specified.
-      else if (user != null)
-      {
-        if (decoder != null)
-        {
-          log_info("Getting connection (user/enc.password): " + url);
-          con = DriverManager.getConnection(url, user, new String(decoder.decode(pass)));
-        }
-        else
-        {
-          log_info("Getting connection (user/password): " + url);
-          con = DriverManager.getConnection(url, user, pass);
-        }
-      }
-      // No username specified - try with just the URL.
       else
       {
-        log_info("Getting connection (just URL): " + url);
-        con = DriverManager.getConnection(url);
+				if (user != null)
+				{
+						if (decoder != null)
+						{
+							log_info("Getting connection (user/enc.password): " + url);
+							con = DriverManager.getConnection(url, user, new String(decoder.decode(pass)));
+						}
+						else
+						{
+							log_info("Getting connection (user/password): " + url);
+							con = DriverManager.getConnection(url, user, pass);
+						}
+				}
+				// No username specified - try with just the URL.
+				else
+				{
+					log_info("Getting connection (just URL): " + url);
+					con = DriverManager.getConnection(url);
+				}
       }
 
       // Add caching wrapper to connection.

@@ -43,6 +43,7 @@ import java.sql.Driver;
 import java.sql.DriverManager;
 import java.sql.SQLException;
 import java.sql.SQLFeatureNotSupportedException;
+import java.util.Properties;
 import javax.sql.DataSource;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
@@ -105,6 +106,8 @@ public class DBPoolDataSource implements DataSource, ConnectionPoolListener
   private int loginTimeout = 3;
   /** Flag determining whether a pool shutdown-hook is registered. */
   private boolean shutdownHook = false;
+	/** JDBC Driver connection specific properties */
+	private Properties properties = null;
 
   /**
    * Creates a new {@code DBPoolDataSource} instance.
@@ -188,7 +191,12 @@ public class DBPoolDataSource implements DataSource, ConnectionPoolListener
     }
     // Create connection pool.
     String poolName = POOL_NAME_PREFIX + name;
-    pool = new ConnectionPool(poolName, getMinPool(), getMaxPool(), getMaxSize(), getIdleTimeout(), getUrl(), getUser(), getPassword());
+		if (this.properties == null)
+      pool = new ConnectionPool(poolName, getMinPool(), getMaxPool(), getMaxSize(), getIdleTimeout(), getUrl(), getUser(), getPassword());
+		else
+		{
+			pool = new ConnectionPool(poolName, getMinPool(), getMaxPool(), getMaxSize(), getIdleTimeout(), getUrl(), getUser(), getPassword(), getProperties());
+		}
     pool.addConnectionPoolListener(this);
     if (getLogWriter() != null)
       pool.setLog(getLogWriter());
@@ -584,6 +592,29 @@ public class DBPoolDataSource implements DataSource, ConnectionPoolListener
         throw new IllegalArgumentException("Invalid selection strategy specified: " + selection);
     }
   }
+
+	/**
+	 * Gets the connection properties for the JDBC driver to use in the underlying {@link ConnectionPool}.
+	 * @return a Properties object containing a list of arbitrary string tag/value pairs as connection arguments in
+	 * the underlying {@link ConnectionPool}
+	 */
+	public Properties getProperties()
+	{
+		return this.properties;
+	}
+
+	/**
+	 * Sets the connection properties for the JDBC driver to use in the underlying {@link ConnectionPool}.
+	 * @param properties a Properties object containing a list of arbitrary string tag/value pairs as connection arguments
+	 *  in the underlying {@link ConnectionPool}
+	 */
+	public void setProperties(Properties properties)
+	{
+		if (properties != null)
+		{
+			this.properties = properties;
+		}
+	}
 
   /**
    * Retrieves the log writer for this DataSource.
